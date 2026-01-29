@@ -104,22 +104,40 @@ def clear_tables(conn):
 
 
 def main():
-    # Generate data
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    orders, executions = generate_trading_day(today, num_orders=500)
+    from datetime import timedelta
     
-    orders_data = orders_to_dicts(orders)
-    executions_data = executions_to_dicts(executions)
-    
-    # Load to database
     conn = get_connection()
     
     try:
         clear_tables(conn)
+        
+        # Generate 5 days of trading data
+        base_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        all_orders = []
+        all_executions = []
+        
+        for days_back in range(5):
+            trade_date = base_date - timedelta(days=days_back)
+            # Skip weekends
+            if trade_date.weekday() >= 5:
+                continue
+            
+            orders, executions = generate_trading_day(trade_date, num_orders=500)
+            all_orders.extend(orders)
+            all_executions.extend(executions)
+            print(f"Generated data for {trade_date.date()}")
+        
+        orders_data = orders_to_dicts(all_orders)
+        executions_data = executions_to_dicts(all_executions)
+        
         insert_accounts(conn, orders_data)
         insert_orders(conn, orders_data)
         insert_executions(conn, executions_data)
-        print("\nData load complete!")
+        
+        print(f"\nLoaded {len(all_orders)} orders and {len(all_executions)} executions")
+        print("Data load complete!")
+        
     finally:
         conn.close()
 
