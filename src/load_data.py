@@ -3,9 +3,9 @@ from psycopg2.extras import execute_values
 from datetime import datetime
 from generate_orders import generate_trading_day, orders_to_dicts, executions_to_dicts
 
-# Database connection config
+# Database connection config - updated for Docker
 DB_CONFIG = {
-    "host": "localhost",
+    "host": "postgres",  # Changed from localhost - this is the Docker service name
     "port": 5432,
     "database": "surveillance_db",
     "user": "surveillance_user",
@@ -69,7 +69,7 @@ def insert_orders(conn, orders: list[dict]):
 
 def insert_executions(conn, executions: list[dict]):
     """Bulk insert executions."""
-    cursor = conn.cursor()
+    cursor = cursor = conn.cursor()
     
     values = [
         (e["exec_id"], e["cl_ord_id"], e["symbol"], e["side"],
@@ -92,6 +92,29 @@ def insert_executions(conn, executions: list[dict]):
     print(f"Inserted {len(executions)} executions")
 
 
+# NEW FUNCTION - for daily runs instead of clearing tables
+def load_single_day(trade_date: datetime):
+    """Load data for a single trading day - used by Airflow."""
+    conn = get_connection()
+    
+    try:
+        # Generate just today's data
+        orders, executions = generate_trading_day(trade_date, num_orders=500)
+        
+        orders_data = orders_to_dicts(orders)
+        executions_data = executions_to_dicts(executions)
+        
+        insert_accounts(conn, orders_data)
+        insert_orders(conn, orders_data)
+        insert_executions(conn, executions_data)
+        
+        print(f"Loaded {len(orders)} orders and {len(executions)} executions for {trade_date.date()}")
+        return len(orders), len(executions)
+        
+    finally:
+        conn.close()
+
+
 def clear_tables(conn):
     """Clear existing data for fresh load."""
     cursor = conn.cursor()
@@ -103,6 +126,7 @@ def clear_tables(conn):
     print("Cleared existing data")
 
 
+# Keep your original main for manual testing
 def main():
     from datetime import timedelta
     
