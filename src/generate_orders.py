@@ -1,6 +1,7 @@
 import uuid
 import random
 import csv
+import os
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import List
@@ -20,6 +21,7 @@ FIRMS = [
 ]
 VENUES = ["NYSE", "NASDAQ", "CBOE", "ARCA"]
 
+DATA_DIR = os.environ.get("DATA_DIR", "./data")
 
 @dataclass
 class Order:
@@ -107,8 +109,8 @@ def generate_trading_day(date: datetime, num_orders: int = 1000) -> tuple[List[O
     executions.sort(key=lambda x: x.transact_time)
     
     date_str = date.strftime("%Y-%m-%d")
-    save_to_csv(orders_to_dicts(orders), f"/opt/airflow/data/orders_{date_str}.csv")
-    save_to_csv(executions_to_dicts(executions), f"/opt/airflow/data/executions_{date_str}.csv")
+    save_to_csv(orders_to_dicts(orders), f"orders_{date_str}.csv")
+    save_to_csv(executions_to_dicts(executions), f"executions_{date_str}.csv")
 
     return orders, executions
 
@@ -150,6 +152,10 @@ def executions_to_dicts(executions: List[Execution]) -> List[dict]:
 def save_to_csv(data, filepath):
     if not data:
         return
+    
+    os.makedirs(DATA_DIR, exist_ok=True)
+    filepath = os.path.join(DATA_DIR, filepath)
+
     with open(filepath, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=data[0].keys())
         writer.writeheader()
