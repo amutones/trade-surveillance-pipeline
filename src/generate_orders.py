@@ -22,6 +22,7 @@ FIRMS = [
 VENUES = ["NYSE", "NASDAQ", "CBOE", "ARCA"]
 
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
+NUM_ORDERS = int(os.environ.get("NUM_ORDERS", 1000))
 
 @dataclass
 class Order:
@@ -48,8 +49,11 @@ class Execution:
     venue: str              # Tag 30
 
 
-def generate_trading_day(date: datetime, num_orders: int = 1000) -> tuple[List[Order], List[Execution]]:
+def generate_trading_day(date: datetime, num_orders: int = None) -> tuple[List[Order], List[Execution]]:
     """Generate a day's worth of orders and executions."""
+    
+    if num_orders is None:
+        num_orders = NUM_ORDERS
     
     orders = []
     executions = []
@@ -165,7 +169,7 @@ def save_to_csv(data, filepath):
 if __name__ == "__main__":
     # Generate one trading day
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    orders, executions = generate_trading_day(today, num_orders=1000)
+    orders, executions = generate_trading_day(today)
     
     print(f"Generated {len(orders)} orders and {len(executions)} executions")
     print(f"\nSample order:")

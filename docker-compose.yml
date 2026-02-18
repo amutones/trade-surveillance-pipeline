@@ -52,6 +52,9 @@ services:
       _AIRFLOW_WWW_USER_USERNAME: 'admin'
       _AIRFLOW_WWW_USER_PASSWORD: 'admin'
       DATA_DIR: /opt/airflow/data
+      NUM_ORDERS: 1000
+      DB_HOST: postgres
+      DB_PORT: 5432
     ports:
       - "8080:8080"
     volumes:
@@ -76,6 +79,9 @@ services:
       AIRFLOW__CORE__FERNET_KEY: 'UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8E='
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       DATA_DIR: /opt/airflow/data
+      NUM_ORDERS: 1000
+      DB_HOST: postgres
+      DB_PORT: 5432
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs

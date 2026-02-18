@@ -2,11 +2,15 @@ import psycopg2
 from psycopg2.extras import execute_values
 from datetime import datetime
 from generate_orders import generate_trading_day, orders_to_dicts, executions_to_dicts
+import pandas as pd
+import os
+
+DATA_DIR = os.environ.get("DATA_DIR", "./data")
 
 # Database connection config - updated for Docker
 DB_CONFIG = {
-    "host": "postgres",  # Changed from localhost - this is the Docker service name
-    "port": 5432,
+    "host": os.environ.get("DB_HOST", "localhost"),  # Changed from localhost - this is the Docker service name
+    "port": int(os.environ.get("DB_PORT", 5433)),
     "database": "surveillance_db",
     "user": "surveillance_user",
     "password": "surveillance_pass"
@@ -95,24 +99,32 @@ def insert_executions(conn, executions: list[dict]):
 # NEW FUNCTION - for daily runs instead of clearing tables
 def load_single_day(trade_date: datetime):
     """Load data for a single trading day - used by Airflow."""
+    date_str = trade_date.strftime("%Y-%m-%d")
+    orders_data = read_from_csv(f"orders_{date_str}.csv")
+    executions_data = read_from_csv(f"executions_{date_str}.csv")
+
     conn = get_connection()
     
     try:
-        # Generate just today's data
-        orders, executions = generate_trading_day(trade_date, num_orders=500)
-        
-        orders_data = orders_to_dicts(orders)
-        executions_data = executions_to_dicts(executions)
         
         insert_accounts(conn, orders_data)
         insert_orders(conn, orders_data)
         insert_executions(conn, executions_data)
         
-        print(f"Loaded {len(orders)} orders and {len(executions)} executions for {trade_date.date()}")
-        return len(orders), len(executions)
+        print(f"Loaded {len(orders_data)} orders and {len(executions_data)} executions for {trade_date.date()}")
+        return len(orders_data), len(executions_data)
         
     finally:
         conn.close()
+
+def read_from_csv(filename):
+    filepath = os.path.join(DATA_DIR, filename)
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"CSV not found: {filepath}")
+    
+    df = pd.read_csv(filepath, parse_date=["transact_time"])
+    return df.to_dict("records")
 
 
 def clear_tables(conn):
@@ -147,7 +159,7 @@ def main():
             if trade_date.weekday() >= 5:
                 continue
             
-            orders, executions = generate_trading_day(trade_date, num_orders=500)
+            orders, executions = generate_trading_day(trade_date)
             all_orders.extend(orders)
             all_executions.extend(executions)
             print(f"Generated data for {trade_date.date()}")
