@@ -62,6 +62,7 @@ def insert_orders(conn, orders: list[dict]):
         INSERT INTO orders (cl_ord_id, symbol, side, order_type, quantity,
                            transact_time, account_id, firm_id, ord_status)
         VALUES %s
+        ON CONFLICT (cl_ord_id) DO NOTHING
         """,
         values
     )
@@ -73,7 +74,7 @@ def insert_orders(conn, orders: list[dict]):
 
 def insert_executions(conn, executions: list[dict]):
     """Bulk insert executions."""
-    cursor = cursor = conn.cursor()
+    cursor = conn.cursor()
     
     values = [
         (e["exec_id"], e["cl_ord_id"], e["symbol"], e["side"],
@@ -87,6 +88,7 @@ def insert_executions(conn, executions: list[dict]):
         INSERT INTO executions (exec_id, cl_ord_id, symbol, side,
                                fill_qty, fill_price, transact_time, venue)
         VALUES %s
+        ON CONFLICT (exec_id) DO NOTHING
         """,
         values
     )
@@ -123,7 +125,7 @@ def read_from_csv(filename):
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"CSV not found: {filepath}")
     
-    df = pd.read_csv(filepath, parse_date=["transact_time"])
+    df = pd.read_csv(filepath, parse_dates=["transact_time"])
     return df.to_dict("records")
 
 
@@ -140,42 +142,19 @@ def clear_tables(conn):
 
 # Keep your original main for manual testing
 def main():
-    from datetime import timedelta
     
-    conn = get_connection()
+    base_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+    date_str = base_date.strftime("%Y-%m-%d")
+    orders_file = os.path.join(DATA_DIR, f"orders_{date_str}.csv")
     
-    try:
-        clear_tables(conn)
-        
-        # Generate 5 days of trading data
-        base_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        all_orders = []
-        all_executions = []
-        
-        for days_back in range(5):
-            trade_date = base_date - timedelta(days=days_back)
-            # Skip weekends
-            if trade_date.weekday() >= 5:
-                continue
-            
-            orders, executions = generate_trading_day(trade_date)
-            all_orders.extend(orders)
-            all_executions.extend(executions)
-            print(f"Generated data for {trade_date.date()}")
-        
-        orders_data = orders_to_dicts(all_orders)
-        executions_data = executions_to_dicts(all_executions)
-        
-        insert_accounts(conn, orders_data)
-        insert_orders(conn, orders_data)
-        insert_executions(conn, executions_data)
-        
-        print(f"\nLoaded {len(all_orders)} orders and {len(all_executions)} executions")
-        print("Data load complete!")
-        
-    finally:
-        conn.close()
+    if not os.path.exists(orders_file):
+        print(f"Generating data for {date_str}...")
+        generate_trading_day(base_date)
+    else:    
+        print(f"CSV for {date_str} already exist. Skipping generation.")
+
+    load_single_day(base_date)
 
 
 if __name__ == "__main__":
