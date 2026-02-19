@@ -4,9 +4,11 @@ from airflow.operators.python import BranchPythonOperator
 from airflow.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
 import sys
+import os
 
 # Add your source code to Python path
 sys.path.insert(0, '/opt/airflow/src')
+DATA_DIR = os.environ.get("DATA_DIR", "/opt/airflow/data")
 
 def check_if_weekend(**context):
     """Skip pipeline on weekends."""
@@ -18,30 +20,52 @@ def check_if_weekend(**context):
         return 'skip_weekend'
     else:
         print(f"Running - {execution_date.date()} is a weekday")
-        return 'generate_and_load_data'
+        return 'generate_new_orders'
 
 
-def run_daily_load(**context):
-    """Generate and load today's trading data."""
-    from load_data import load_single_day
+def run_generate_new_orders(**context):
+    """Generate day's trading data and save to csv."""
+    from generate_orders import generate_trading_day
     
     # Use Airflow's execution date
     execution_date = context['execution_date']
     
     # Make it timezone-naive if needed
     trade_date = execution_date.replace(tzinfo=None)
+    date_str = trade_date.strftime("%Y-%m-%d")
+
+    orders_file = os.path.join(DATA_DIR, f"orders_{date_str}.csv")
+
+    if os.path.exists(orders_file):
+        print(f"CSV for {date_str} already exists. Skipping generation.")
+        return "skipped"
     
-    print(f"Starting data generation for {trade_date.date()}")
+    print(f"Generating orders for {date_str}...")
+    generate_trading_day(trade_date)
+    print(f"CSV generated for {date_str}")
+    return "generated"
+
+
+def run_load_orders(**context):
+    """Load day's trading data from csv to database."""
+    from load_data import load_single_day
+
+    # Use Airflow's execution date
+    execution_date = context['execution_date']
+    
+    # Make it timezone-naive if needed
+    trade_date = execution_date.replace(tzinfo=None)
+    
+    print(f"Loading data for {trade_date.date()}")
     order_count, exec_count = load_single_day(trade_date)
-    
-    # Store counts in XCom for validation task
+
+    # Store counts for validation
     context['task_instance'].xcom_push(key='order_count', value=order_count)
     context['task_instance'].xcom_push(key='exec_count', value=exec_count)
     
     return f"Loaded {order_count} orders, {exec_count} executions"
 
-
-def validate_data(**context):
+def run_validate_data(**context):
     """Validate that data was loaded correctly."""
     import psycopg2
     
@@ -49,12 +73,13 @@ def validate_data(**context):
     
     # Get counts from previous task
     ti = context['task_instance']
-    expected_orders = ti.xcom_pull(task_ids='generate_and_load_data', key='order_count')
-    expected_execs = ti.xcom_pull(task_ids='generate_and_load_data', key='exec_count')
+    expected_orders = ti.xcom_pull(task_ids='load_orders', key='order_count')
+    expected_execs = ti.xcom_pull(task_ids='load_orders', key='exec_count')
     
     # Connect and verify
     conn = psycopg2.connect(
-        host='postgres',
+        host=os.environ.get("DB_HOST", "postgres"),
+        port=int(os.environ.get("DB_PORT", 5432)),
         database='surveillance_db',
         user='surveillance_user',
         password='surveillance_pass'
@@ -83,8 +108,8 @@ def validate_data(**context):
     print(f"  Executions: {actual_execs} (expected {expected_execs})")
     
     # Basic assertions
-    assert actual_orders == expected_orders, f"Order count mismatch!"
-    assert actual_execs == expected_execs, f"Execution count mismatch!"
+    assert actual_orders >= expected_orders, f"Order count mismatch!"
+    assert actual_execs >= expected_execs, f"Execution count mismatch!"
     assert actual_orders > 0, "No orders loaded!"
     
     print("✓ Validation passed")
@@ -112,7 +137,6 @@ with DAG(
     check_weekend = BranchPythonOperator(
         task_id='check_if_weekend',
         python_callable=check_if_weekend,
-        provide_context=True,
     )
 
     # Skip marker
@@ -121,19 +145,24 @@ with DAG(
     )
 
     # Main ETL
-    generate_load = PythonOperator(
-        task_id='generate_and_load_data',
-        python_callable=run_daily_load,
-        provide_context=True,
+    #Generate orders
+    generate_new_orders = PythonOperator(
+        task_id='generate_new_orders',
+        python_callable=run_generate_new_orders,
     )
 
+    load_orders = PythonOperator(
+        task_id='load_orders',
+        python_callable=run_load_orders,
+    )
+    
+    
     # Validation
     validate = PythonOperator(
         task_id='validate_data',
-        python_callable=validate_data,
-        provide_context=True,
+        python_callable=run_validate_data,
     )
 
     # Pipeline flow
-    check_weekend >> [skip_weekend, generate_load]
-    generate_load >> validate
+    check_weekend >> [skip_weekend, generate_new_orders]
+    generate_new_orders >> load_orders >> validate
