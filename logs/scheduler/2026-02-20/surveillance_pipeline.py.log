@@ -479,3 +479,101 @@
 [2026-02-20T15:05:44.932+0000] {logging_mixin.py:151} INFO - [2026-02-20T15:05:44.932+0000] {dag.py:2915} INFO - Sync 1 DAGs
 [2026-02-20T15:05:44.957+0000] {logging_mixin.py:151} INFO - [2026-02-20T15:05:44.957+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
 [2026-02-20T15:05:44.976+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.103 seconds
+[2026-02-20T18:18:33.657+0000] {processor.py:157} INFO - Started process (PID=164) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:18:33.660+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:18:33.662+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:18:33.661+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:18:33.701+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:18:33.737+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:18:33.737+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:18:33.767+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:18:33.766+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:18:33.791+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.139 seconds
+[2026-02-20T18:19:03.886+0000] {processor.py:157} INFO - Started process (PID=169) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:19:03.889+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:19:03.891+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:19:03.890+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:19:03.924+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:19:04.014+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:19:04.014+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:19:04.050+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:19:04.050+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:19:04.079+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.200 seconds
+[2026-02-20T18:19:34.335+0000] {processor.py:157} INFO - Started process (PID=174) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:19:34.387+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:19:34.394+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:19:34.391+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:19:34.454+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:19:34.544+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:19:34.544+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:19:34.595+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:19:34.595+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:19:34.627+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.318 seconds
+[2026-02-20T18:20:04.904+0000] {processor.py:157} INFO - Started process (PID=179) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:20:04.953+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:20:04.956+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:20:04.955+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:20:04.988+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:20:05.062+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:20:05.062+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:20:05.124+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:20:05.123+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:20:05.221+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.344 seconds
+[2026-02-20T18:20:35.537+0000] {processor.py:157} INFO - Started process (PID=184) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:20:35.538+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:20:35.541+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:20:35.540+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:20:35.571+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:20:35.627+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:20:35.627+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:20:35.669+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:20:35.669+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:20:35.702+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.182 seconds
+[2026-02-20T18:21:05.880+0000] {processor.py:157} INFO - Started process (PID=189) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:21:05.886+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:21:05.892+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:21:05.889+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:21:05.994+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:21:06.080+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:21:06.079+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:21:06.144+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:21:06.144+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:21:06.191+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.329 seconds
+[2026-02-20T18:21:36.482+0000] {processor.py:157} INFO - Started process (PID=194) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:21:36.487+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:21:36.491+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:21:36.489+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:21:36.558+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:21:36.641+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:21:36.640+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:21:36.673+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:21:36.673+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:21:36.701+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.237 seconds
+[2026-02-20T18:22:06.852+0000] {processor.py:157} INFO - Started process (PID=199) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:22:06.899+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:22:06.900+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:22:06.899+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:22:06.918+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:22:06.957+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:22:06.957+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:22:06.984+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:22:06.983+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:22:07.006+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.158 seconds
+[2026-02-20T18:22:37.145+0000] {processor.py:157} INFO - Started process (PID=204) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:22:37.146+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:22:37.147+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:22:37.147+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:22:37.168+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:22:37.209+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:22:37.209+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:22:37.241+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:22:37.241+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:22:37.277+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.136 seconds
+[2026-02-20T18:23:07.440+0000] {processor.py:157} INFO - Started process (PID=209) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:23:07.487+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:23:07.488+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:23:07.488+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:23:07.518+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:23:07.579+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:23:07.579+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:23:07.632+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:23:07.631+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:23:07.663+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.231 seconds
+[2026-02-20T18:23:37.734+0000] {processor.py:157} INFO - Started process (PID=214) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:23:37.737+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:23:37.739+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:23:37.738+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:23:37.766+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:23:37.817+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:23:37.817+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:23:37.847+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:23:37.847+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:23:37.927+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.200 seconds
+[2026-02-20T18:24:08.045+0000] {processor.py:157} INFO - Started process (PID=219) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:24:08.092+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:24:08.094+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:24:08.094+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:24:08.125+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:24:08.169+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:24:08.169+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:24:08.197+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:24:08.197+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:24:08.297+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.259 seconds
+[2026-02-20T18:24:38.494+0000] {processor.py:157} INFO - Started process (PID=224) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:24:38.543+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:24:38.545+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:24:38.544+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:24:38.578+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:24:38.614+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:24:38.614+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:24:38.638+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:24:38.638+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:24:38.665+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.182 seconds
+[2026-02-20T18:25:08.810+0000] {processor.py:157} INFO - Started process (PID=229) to work on /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:25:08.812+0000] {processor.py:829} INFO - Processing file /opt/airflow/dags/surveillance_pipeline.py for tasks to queue
+[2026-02-20T18:25:08.813+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:25:08.812+0000] {dagbag.py:539} INFO - Filling up the DagBag from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:25:08.837+0000] {processor.py:839} INFO - DAG(s) dict_keys(['trade_surveillance_daily']) retrieved from /opt/airflow/dags/surveillance_pipeline.py
+[2026-02-20T18:25:08.887+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:25:08.887+0000] {dag.py:2915} INFO - Sync 1 DAGs
+[2026-02-20T18:25:08.924+0000] {logging_mixin.py:151} INFO - [2026-02-20T18:25:08.924+0000] {dag.py:3696} INFO - Setting next_dagrun for trade_surveillance_daily to 2026-02-20T06:00:00+00:00, run_after=2026-02-23T06:00:00+00:00
+[2026-02-20T18:25:09.013+0000] {processor.py:179} INFO - Processing /opt/airflow/dags/surveillance_pipeline.py took 0.208 seconds
