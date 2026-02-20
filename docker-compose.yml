@@ -19,9 +19,11 @@ services:
   postgres:
     image: postgres:15
     container_name: surveillance_db
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: surveillance_user
-      POSTGRES_PASSWORD: surveillance_pass
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: surveillance_db
     ports:
       - "5433:5432"
@@ -42,20 +44,23 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://surveillance_user:surveillance_pass@postgres/airflow_db
-      AIRFLOW__CORE__FERNET_KEY: 'UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8E='
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'your-secret-key-here'
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: 'admin'
-      _AIRFLOW_WWW_USER_PASSWORD: 'admin'
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
       DATA_DIR: /opt/airflow/data
       NUM_ORDERS: 1000
       DB_HOST: postgres
       DB_PORT: 5432
+      S3_BUCKET: trade-surveillance-data-au
     ports:
       - "8080:8080"
     volumes:
@@ -74,15 +79,18 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://surveillance_user:surveillance_pass@postgres/airflow_db
-      AIRFLOW__CORE__FERNET_KEY: 'UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8E='
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       DATA_DIR: /opt/airflow/data
       NUM_ORDERS: 1000
       DB_HOST: postgres
       DB_PORT: 5432
+      S3_BUCKET: trade-surveillance-au
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
