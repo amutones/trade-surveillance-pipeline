@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import List
+from s3_utils import upload_to_s3
 
 # FIX-standard values
 SIDE_BUY = "1"
@@ -113,8 +114,16 @@ def generate_trading_day(date: datetime, num_orders: int = None) -> tuple[List[O
     executions.sort(key=lambda x: x.transact_time)
     
     date_str = date.strftime("%Y-%m-%d")
-    save_to_csv(orders_to_dicts(orders), f"orders_{date_str}.csv")
-    save_to_csv(executions_to_dicts(executions), f"executions_{date_str}.csv")
+    orders_filename = f"orders_{date_str}.csv"
+    executions_filename = f"executions_{date_str}.csv"
+    save_to_csv(orders_to_dicts(orders), orders_filename)
+    save_to_csv(executions_to_dicts(executions), executions_filename)
+
+    local_orders_path = os.path.join(DATA_DIR, orders_filename)
+    local_executions_path = os.path.join(DATA_DIR, executions_filename)
+
+    upload_to_s3(local_orders_path, f"orders/{orders_filename}")
+    upload_to_s3(local_executions_path, f"executions/{executions_filename}")
 
     return orders, executions
 
