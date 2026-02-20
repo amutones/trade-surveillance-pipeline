@@ -58,9 +58,12 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
       DATA_DIR: /opt/airflow/data
       NUM_ORDERS: 1000
-      DB_HOST: postgres
-      DB_PORT: 5432
       S3_BUCKET: ${S3_BUCKET}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "8080:8080"
     volumes:
@@ -88,9 +91,12 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       DATA_DIR: /opt/airflow/data
       NUM_ORDERS: 1000
-      DB_HOST: postgres
-      DB_PORT: 5432
       S3_BUCKET: ${S3_BUCKET}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs

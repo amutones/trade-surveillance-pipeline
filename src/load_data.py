@@ -10,10 +10,10 @@ DATA_DIR = os.environ.get("DATA_DIR", "./data")
 # Database connection config - updated for Docker
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),  # Changed from localhost - this is the Docker service name
-    "port": int(os.environ.get("DB_PORT", 5433)),
-    "database": "surveillance_db",
-    "user": "surveillance_user",
-    "password": "surveillance_pass"
+    "port": int(os.environ.get("DB_PORT", 5432)),
+    "database": os.environ.get("DB_NAME", "postgres"),
+    "user": os.environ.get("DB_USER", "postgres"),
+    "password": os.environ.get("DB_PASSWORD", "surveillance_pass")
 }
 
 
