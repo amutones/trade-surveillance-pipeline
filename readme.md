@@ -38,24 +38,25 @@ Airflow DAG
 │   └── No ↓
 │
 ├── generate_new_orders
-│   ├── Save to ./data/orders_YYYY-MM-DD.csv
-│   └── Save to ./data/executions_YYYY-MM-DD.csv
+│   ├── Generate 1,000 orders + 1,000 executions
+│   ├── Save to local ./data/
+│   └── Upload to S3 bucket
 │
 ├── load_orders
-│   └── Read CSVs → Insert to PostgreSQL
+│   ├── Download from S3 bucket
+│   └── Insert to PostgreSQL
 │
 └── validate_data
     └── Assert counts match
 ```
 
-
 Data Flow:
 ──────────
 1. Airflow scheduler triggers DAG (6 AM, Mon-Fri)
 2. Check if weekend → skip if true
-3. Generate 1,000 orders and executions → save to CSVs
-4. Load CSVs → insert to PostgreSQL (ON CONFLICT DO NOTHING)
-5. Validate → assert counts match
+3. Generate 1,000 orders + 1,000 executions → save to S3
+4. Download from S3 → insert to PostgreSQL (ON CONFLICT DO NOTHING)
+5. Validate → assert order and execution counts match
 ```
 
 ---
@@ -66,10 +67,10 @@ Data Flow:
 |-----------|------------|---------|
 | Orchestration | Apache Airflow 2.7.1 | Schedule and monitor pipeline |
 | Database | PostgreSQL 15 | Store trade and execution data |
+| Cloud Storage | AWS S3 | Data lake for CSV files |
 | Language | Python 3.11 | Data generation and loading |
 | Containerization | Docker & Docker Compose | Local development environment |
-| Data Format | CSV | Intermediate storage (data lake) |
-
+| Data Format | CSV | Intermediate storage |
 ---
 
 ## Project Structure
@@ -78,16 +79,17 @@ trade-surveillance-pipeline/
 ├── dags/
 │   └── surveillance_pipeline.py    # Airflow DAG definition
 ├── src/
-│   ├── generate_orders.py          # Order/execution generation
-│   └── load_data.py                # CSV reading and DB loading
+│   ├── generate_orders.py          # Order/execution generation + S3 upload
+│   ├── load_data.py                # S3 download + DB loading
+│   └── s3_utils.py                 # S3 helper functions
 ├── sql/
-│   ├── init-airflow-db.sql                    # Database schema
-│   └── create_tables.sql           # Table creation scripts
-├── data/                           # Generated CSV files
+│   └── create_tables.sql           # Database schema
+├── data/                           # Local CSV files (temporary)
 ├── logs/                           # Airflow logs
 ├── plugins/                        # Airflow plugins
 ├── docker-compose.yml              # Docker services configuration
 ├── requirements.txt                # Python dependencies
+├── .env                            # Environment variables (not in git)
 └── README.md
 ```
 
@@ -249,7 +251,8 @@ executions (
 
 ## Idempotency
 
-The pipeline is designed to be safely re-run without creating duplicate data.
+The pipeline is designed to be safely re-run without creating duplicate data. Running the pipeline multiple times for the same date produces the same result.
+
 
 ### Why It Matters
 
@@ -262,14 +265,16 @@ In production, pipelines can fail mid-run and need to be retried. Without idempo
 
 | Layer | Mechanism | Behavior |
 |-------|-----------|----------|
-| CSV Generation | File existence check | Skip if `orders_YYYY-MM-DD.csv` exists |
+| S3 Upload | `file_exists_in_s3()` check | Skip generation if CSV exists in S3 |
 | Database Insert | `ON CONFLICT DO NOTHING` | Duplicate primary keys are ignored |
 | Validation | Count comparison | Uses `>=` to handle pre-existing data |
 
-### CSV Generation
+### S3 Check
 ```python
-if os.path.exists(orders_file):
-    print(f"CSV already exists. Skipping generation.")
+from s3_utils import file_exists_in_s3
+
+if file_exists_in_s3(s3_key):
+    print(f"CSV already exists in S3. Skipping generation.")
     return "skipped"
 ```
 
@@ -289,8 +294,9 @@ ON CONFLICT (cl_ord_id) DO NOTHING
 # - Insert 0 new rows (duplicates ignored)
 # - Validation passes
 
+# Verify no duplicates
 docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
-  -c "SELECT DATE(transact_time), COUNT(*) FROM orders GROUP BY 1;"
+  -c "SELECT DATE(transact_time), COUNT(*) FROM orders GROUP BY 1 ORDER BY 1;"
 ```
 
 ---
@@ -301,9 +307,30 @@ docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATA_DIR` | `./data` (local) or `/opt/airflow/data` (Docker) | CSV storage path |
+| `DATA_DIR` | `./data` (local) or `/opt/airflow/data` (Docker) | Local CSV storage path |
 | `DB_HOST` | `localhost` (local) or `postgres` (Docker) | Database host |
 | `DB_PORT` | `5433` (local) or `5432` (Docker) | Database port |
+| `S3_BUCKET` | - | S3 bucket name |
+| `AWS_ACCESS_KEY_ID` | - | AWS access key |
+| `AWS_SECRET_ACCESS_KEY` | - | AWS secret key |
+| `AWS_REGION` | `us-east-1` | AWS region |
+
+### .env File (Create This)
+```bash
+# AWS Credentials
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+S3_BUCKET=your-bucket-name
+
+# Airflow Secrets
+AIRFLOW__CORE__FERNET_KEY=your-fernet-key
+AIRFLOW__WEBSERVER__SECRET_KEY=your-secret-key
+
+# Database
+POSTGRES_PASSWORD=surveillance_pass
+```
+
+**Important:** Add `.env` to `.gitignore` — never commit credentials.
 
 ### Docker Services
 
@@ -314,6 +341,34 @@ docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
 | `surveillance_db` | 5433 | PostgreSQL database |
 
 ---
+
+## AWS Setup
+
+### Prerequisites
+
+1. AWS account with free tier
+2. S3 bucket created
+3. IAM user with S3 access
+
+### Create S3 Bucket
+
+1. Go to AWS Console → S3
+2. Create bucket (e.g., `trade-surveillance-data-yourname`)
+3. Region: `us-east-1`
+4. Leave defaults, click Create
+
+### Create IAM User
+
+1. Go to AWS Console → IAM → Users
+2. Create user: `surveillance-pipeline-user`
+3. Attach policy: `AmazonS3FullAccess`
+4. Create access key, save credentials
+
+### Set Billing Alert
+
+1. Go to AWS Console → Budgets
+2. Create budget: $1 threshold
+3. Add email alert at 80%
 
 ## Stopping the Pipeline
 
@@ -340,7 +395,8 @@ docker-compose down -v
 
 ## Future Enhancements
 
-- [ ] **Cloud Migration:** Move CSVs to S3, database to Supabase
+- [x] **S3 Integration:** CSVs stored in S3 data lake
+- [ ] **Cloud Database:** Move PostgreSQL to Supabase
 - [ ] **EC2 Deployment:** Run Airflow on AWS EC2
 - [ ] **dbt Transformations:** Add staging and mart layers
 - [ ] **Surveillance Logic:** Implement wash trade detection
