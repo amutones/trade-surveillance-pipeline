@@ -60,7 +60,7 @@ services:
       NUM_ORDERS: 1000
       DB_HOST: postgres
       DB_PORT: 5432
-      S3_BUCKET: trade-surveillance-data-au
+      S3_BUCKET: ${S3_BUCKET}
     ports:
       - "8080:8080"
     volumes:
@@ -90,7 +90,7 @@ services:
       NUM_ORDERS: 1000
       DB_HOST: postgres
       DB_PORT: 5432
-      S3_BUCKET: trade-surveillance-au
+      S3_BUCKET: ${S3_BUCKET}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
