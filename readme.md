@@ -342,42 +342,63 @@ POSTGRES_PASSWORD=surveillance_pass
 
 ---
 
-## AWS Setup
+## Cloud Infrastructure
 
-### Prerequisites
+### AWS S3 (Data Lake)
 
-1. AWS account with free tier
-2. S3 bucket created
-3. IAM user with S3 access
-
-### Create S3 Bucket
-
+**Setup:**
 1. Go to AWS Console → S3
 2. Create bucket (e.g., `trade-surveillance-data-yourname`)
 3. Region: `us-east-1`
-4. Leave defaults, click Create
 
-### Create IAM User
+**Structure:**
+```
+s3://trade-surveillance-data-au/
+├── orders/
+│   └── orders_YYYY-MM-DD.csv
+└── executions/
+    └── executions_YYYY-MM-DD.csv
+```
+
+### AWS IAM
 
 1. Go to AWS Console → IAM → Users
 2. Create user: `surveillance-pipeline-user`
 3. Attach policy: `AmazonS3FullAccess`
 4. Create access key, save credentials
 
-### Set Billing Alert
+### AWS Billing Alert
 
 1. Go to AWS Console → Budgets
 2. Create budget: $1 threshold
 3. Add email alert at 80%
 
-## Stopping the Pipeline
+### Supabase PostgreSQL (Database)
 
-```bash
-# Stop all containers (keep data)
-docker-compose down
+**Setup:**
+1. Create account at supabase.com
+2. Create new project
+3. Run `sql/create_tables.sql` in SQL Editor
+4. Use Transaction pooler connection string
 
-# Stop and delete all data (fresh start)
-docker-compose down -v
+**Connection:**
+- Host: `aws-X-us-east-1.pooler.supabase.com`
+- Port: `6543`
+- Database: `postgres`
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_HOST` | `localhost` | Supabase pooler host |
+| `DB_PORT` | `5432` | 6543 for Supabase pooler |
+| `DB_NAME` | `postgres` | Database name |
+| `DB_USER` | `postgres` | Database user |
+| `DB_PASSWORD` | - | Database password (required) |
+| `S3_BUCKET` | - | S3 bucket name (required) |
+| `AWS_ACCESS_KEY_ID` | - | AWS credentials (required) |
+| `AWS_SECRET_ACCESS_KEY` | - | AWS credentials (required) |
+| `AWS_REGION` | `us-east-1` | AWS region |
 ```
 
 ---
@@ -396,7 +417,7 @@ docker-compose down -v
 ## Future Enhancements
 
 - [x] **S3 Integration:** CSVs stored in S3 data lake
-- [ ] **Cloud Database:** Move PostgreSQL to Supabase
+- [x] **Cloud Database:** PostgreSQL on Supabase
 - [ ] **EC2 Deployment:** Run Airflow on AWS EC2
 - [ ] **dbt Transformations:** Add staging and mart layers
 - [ ] **Surveillance Logic:** Implement wash trade detection
