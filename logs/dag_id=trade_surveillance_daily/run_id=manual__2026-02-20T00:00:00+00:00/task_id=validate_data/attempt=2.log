@@ -1,0 +1,18 @@
+[2026-02-21T15:14:02.160+0000] {taskinstance.py:1157} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: trade_surveillance_daily.validate_data manual__2026-02-20T00:00:00+00:00 [queued]>
+[2026-02-21T15:14:02.167+0000] {taskinstance.py:1157} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: trade_surveillance_daily.validate_data manual__2026-02-20T00:00:00+00:00 [queued]>
+[2026-02-21T15:14:02.168+0000] {taskinstance.py:1359} INFO - Starting attempt 2 of 3
+[2026-02-21T15:14:02.182+0000] {taskinstance.py:1380} INFO - Executing <Task(PythonOperator): validate_data> on 2026-02-20 00:00:00+00:00
+[2026-02-21T15:14:02.187+0000] {standard_task_runner.py:57} INFO - Started process 458 to run task
+[2026-02-21T15:14:02.191+0000] {standard_task_runner.py:84} INFO - Running: ['airflow', 'tasks', 'run', 'trade_surveillance_daily', 'validate_data', 'manual__2026-02-20T00:00:00+00:00', '--job-id', '108', '--raw', '--subdir', 'DAGS_FOLDER/surveillance_pipeline.py', '--cfg-path', '/tmp/tmpogtcnic8']
+[2026-02-21T15:14:02.195+0000] {standard_task_runner.py:85} INFO - Job 108: Subtask validate_data
+[2026-02-21T15:14:02.259+0000] {task_command.py:415} INFO - Running <TaskInstance: trade_surveillance_daily.validate_data manual__2026-02-20T00:00:00+00:00 [running]> on host cbfb1907d353
+[2026-02-21T15:14:02.356+0000] {taskinstance.py:1660} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='tony' AIRFLOW_CTX_DAG_ID='trade_surveillance_daily' AIRFLOW_CTX_TASK_ID='validate_data' AIRFLOW_CTX_EXECUTION_DATE='2026-02-20T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='2' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-02-20T00:00:00+00:00'
+[2026-02-21T15:14:02.361+0000] {logging_mixin.py:151} WARNING - /home/airflow/.local/lib/python3.11/site-packages/airflow/utils/context.py:314 AirflowContextDeprecationWarning: Accessing 'execution_date' from the template is deprecated and will be removed in a future version. Please use 'data_interval_start' or 'logical_date' instead.
+[2026-02-21T15:14:03.036+0000] {logging_mixin.py:151} INFO - Validation Results:
+[2026-02-21T15:14:03.037+0000] {logging_mixin.py:151} INFO -   Orders: 3000 (expected 1000)
+[2026-02-21T15:14:03.038+0000] {logging_mixin.py:151} INFO -   Executions: 3000 (expected 1000)
+[2026-02-21T15:14:03.039+0000] {logging_mixin.py:151} INFO - ✓ Validation passed
+[2026-02-21T15:14:03.040+0000] {python.py:194} INFO - Done. Returned value was: None
+[2026-02-21T15:14:03.065+0000] {taskinstance.py:1398} INFO - Marking task as SUCCESS. dag_id=trade_surveillance_daily, task_id=validate_data, execution_date=20260220T000000, start_date=20260221T151402, end_date=20260221T151403
+[2026-02-21T15:14:03.130+0000] {local_task_job_runner.py:228} INFO - Task exited with return code 0
+[2026-02-21T15:14:03.153+0000] {taskinstance.py:2776} INFO - 0 downstream tasks scheduled from follow-on schedule check
