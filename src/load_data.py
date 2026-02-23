@@ -1,19 +1,19 @@
 import psycopg2
 from psycopg2.extras import execute_values
 from datetime import datetime
-from generate_orders import generate_trading_day, orders_to_dicts, executions_to_dicts
 import pandas as pd
 import os
+from s3_utils import download_from_s3
 
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
 
 # Database connection config - updated for Docker
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),  # Changed from localhost - this is the Docker service name
-    "port": int(os.environ.get("DB_PORT", 5433)),
-    "database": "surveillance_db",
-    "user": "surveillance_user",
-    "password": "surveillance_pass"
+    "port": int(os.environ.get("DB_PORT", 5432)),
+    "database": os.environ.get("DB_NAME", "postgres"),
+    "user": os.environ.get("DB_USER", "postgres"),
+    "password": os.environ.get("DB_PASSWORD", "surveillance_pass")
 }
 
 
@@ -102,8 +102,17 @@ def insert_executions(conn, executions: list[dict]):
 def load_single_day(trade_date: datetime):
     """Load data for a single trading day - used by Airflow."""
     date_str = trade_date.strftime("%Y-%m-%d")
-    orders_data = read_from_csv(f"orders_{date_str}.csv")
-    executions_data = read_from_csv(f"executions_{date_str}.csv")
+    
+    orders_filename = f"orders_{date_str}.csv"
+    executions_filename = f"executions_{date_str}.csv"
+    local_orders_path = os.path.join(DATA_DIR, orders_filename)
+    local_executions_path = os.path.join(DATA_DIR, executions_filename)
+
+    download_from_s3(f"orders/{orders_filename}", local_orders_path)
+    download_from_s3(f"executions/{executions_filename}", local_executions_path)
+
+    orders_data = read_from_csv(orders_filename)
+    executions_data = read_from_csv(executions_filename)
 
     conn = get_connection()
     
@@ -144,15 +153,6 @@ def clear_tables(conn):
 def main():
     
     base_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-    date_str = base_date.strftime("%Y-%m-%d")
-    orders_file = os.path.join(DATA_DIR, f"orders_{date_str}.csv")
-    
-    if not os.path.exists(orders_file):
-        print(f"Generating data for {date_str}...")
-        generate_trading_day(base_date)
-    else:    
-        print(f"CSV for {date_str} already exist. Skipping generation.")
 
     load_single_day(base_date)
 

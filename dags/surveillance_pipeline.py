@@ -26,7 +26,8 @@ def check_if_weekend(**context):
 def run_generate_new_orders(**context):
     """Generate day's trading data and save to csv."""
     from generate_orders import generate_trading_day
-    
+    from s3_utils import file_exists_in_s3
+
     # Use Airflow's execution date
     execution_date = context['execution_date']
     
@@ -34,10 +35,10 @@ def run_generate_new_orders(**context):
     trade_date = execution_date.replace(tzinfo=None)
     date_str = trade_date.strftime("%Y-%m-%d")
 
-    orders_file = os.path.join(DATA_DIR, f"orders_{date_str}.csv")
+    s3_key = f"orders/orders_{date_str}.csv"
 
-    if os.path.exists(orders_file):
-        print(f"CSV for {date_str} already exists. Skipping generation.")
+    if file_exists_in_s3(s3_key):
+        print(f"CSV for {date_str} already exists in S3. Skipping generation.")
         return "skipped"
     
     print(f"Generating orders for {date_str}...")
@@ -80,9 +81,9 @@ def run_validate_data(**context):
     conn = psycopg2.connect(
         host=os.environ.get("DB_HOST", "postgres"),
         port=int(os.environ.get("DB_PORT", 5432)),
-        database='surveillance_db',
-        user='surveillance_user',
-        password='surveillance_pass'
+        database=os.environ.get("DB_NAME", "postgres"),
+        user=os.environ.get("DB_USER", "postgres"),
+        password=os.environ.get("DB_PASSWORD", "surveillance_pass")
     )
     
     cursor = conn.cursor()
