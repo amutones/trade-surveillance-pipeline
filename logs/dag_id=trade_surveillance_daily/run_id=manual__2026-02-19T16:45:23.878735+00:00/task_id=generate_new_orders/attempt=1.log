@@ -1,2 +1,0 @@
-[2026-02-19T16:53:01.725+0000] {taskinstance.py:1147} INFO - Dependencies not met for <TaskInstance: trade_surveillance_daily.generate_new_orders manual__2026-02-19T16:45:23.878735+00:00 [skipped]>, dependency 'Not Previously Skipped' FAILED: Skipping because of previous XCom result from parent task check_if_weekend
-[2026-02-19T16:53:01.729+0000] {local_task_job_runner.py:154} INFO - Task is not able to be run
