@@ -37,6 +37,31 @@ class Order:
     firm_id: str
     ord_status: str         # Tag 39
 
+    def validate(self) -> List[str]:
+        """Returns list of errors (empty if valid)"""
+        errors = []
+        if not self.cl_ord_id or not isinstance(self.cl_ord_id, str):
+            errors.append(f"Invalid cl_ord_id: {self.cl_ord_id}")
+        if self.symbol not in SYMBOLS:
+            errors.append(f"Invalid symbol: {self.symbol}")
+        if self.side not in [SIDE_BUY, SIDE_SELL]:
+            errors.append(f"Invalid side: {self.side} (must be '1' or '2')")
+        if self.order_type not in [ORD_TYPE_MARKET]:
+            errors.append(f"Invalid order_type: {self.order_type}")
+        if not isinstance(self.quantity, int) or self.quantity <= 0:
+            errors.append(f"Invalid quantity: {self.quantity}")
+        if not isinstance(self.transact_time, datetime):
+            errors.append(f"Invalid transact_time: {self.transact_time}")
+        if not self.account_id or not isinstance(self.account_id, str):
+            errors.append(f"Invalid account_id: {self.account_id}")
+        valid_firm_ids = [f["firm_id"] for f in FIRMS]
+        if self.firm_id not in valid_firm_ids:
+            errors.append(f"Invalid firm_id: {self.firm_id}")
+        if self.ord_status not in [ORD_STATUS_NEW, ORD_STATUS_FILLED]:
+            errors.append(f"Invalid ord_status: {self.ord_status}")
+        
+        return errors
+        
 
 @dataclass
 class Execution:
@@ -49,6 +74,28 @@ class Execution:
     transact_time: datetime # Tag 60
     venue: str              # Tag 30
 
+    def validate(self) -> List[str]:
+        """Returns list of errors (empty if valid)."""
+        errors = []
+        
+        if not self.exec_id or not isinstance(self.exec_id, str):
+            errors.append(f"Invalid exec_id: {self.exec_id}")
+        if not self.cl_ord_id or not isinstance(self.cl_ord_id, str):
+            errors.append(f"Invalid cl_ord_id: {self.cl_ord_id}")
+        if self.symbol not in SYMBOLS:
+            errors.append(f"Invalid symbol: {self.symbol}")
+        if self.side not in [SIDE_BUY, SIDE_SELL]:
+            errors.append(f"Invalid side: {self.side}")
+        if not isinstance(self.fill_qty, int) or self.fill_qty <= 0:
+            errors.append(f"Invalid fill_qty: {self.fill_qty}")
+        if not isinstance(self.fill_price, (int, float)) or self.fill_price <= 0:
+            errors.append(f"Invalid fill_price: {self.fill_price}")
+        if not isinstance(self.transact_time, datetime):
+            errors.append(f"Invalid transact_time: {self.transact_time}")
+        if self.venue not in VENUES:
+            errors.append(f"Invalid venue: {self.venue}")
+        
+        return errors
 
 def generate_trading_day(date: datetime, num_orders: int = None) -> tuple[List[Order], List[Execution]]:
     """Generate a day's worth of orders and executions."""
@@ -56,8 +103,8 @@ def generate_trading_day(date: datetime, num_orders: int = None) -> tuple[List[O
     if num_orders is None:
         num_orders = NUM_ORDERS
     
-    orders = []
-    executions = []
+    raw_orders = []
+    raw_executions = []
     
     # Market hours: 9:30 AM - 4:00 PM
     market_open = date.replace(hour=9, minute=30, second=0, microsecond=0)
@@ -85,7 +132,12 @@ def generate_trading_day(date: datetime, num_orders: int = None) -> tuple[List[O
             firm_id=firm["firm_id"],
             ord_status=ORD_STATUS_FILLED  # Market orders fill immediately
         )
-        orders.append(order)
+
+        errors = order.validate()
+        if errors:
+            raise ValueError(f"Order validation failed: {errors}")
+
+        raw_orders.append(order)
         
         # Market orders get immediate fill - create execution
         # Simulate realistic price based on symbol
@@ -107,25 +159,42 @@ def generate_trading_day(date: datetime, num_orders: int = None) -> tuple[List[O
             transact_time=order_time + timedelta(milliseconds=random.randint(10, 500)),
             venue=random.choice(VENUES)
         )
-        executions.append(execution)
+
+        errors = execution.validate()
+        if errors:
+            raise ValueError(f"Execution validation failed: {errors}")
+
+        raw_executions.append(execution)
     
     # Sort by time
-    orders.sort(key=lambda x: x.transact_time)
-    executions.sort(key=lambda x: x.transact_time)
+    raw_orders.sort(key=lambda x: x.transact_time)
+    raw_executions.sort(key=lambda x: x.transact_time)
     
+    date_partition = date.strftime("%Y/%m/%d")
     date_str = date.strftime("%Y-%m-%d")
     orders_filename = f"orders_{date_str}.csv"
     executions_filename = f"executions_{date_str}.csv"
-    save_to_csv(orders_to_dicts(orders), orders_filename)
-    save_to_csv(executions_to_dicts(executions), executions_filename)
+
+    save_to_csv(orders_to_dicts(raw_orders), orders_filename)
+    save_to_csv(executions_to_dicts(raw_executions), executions_filename)
 
     local_orders_path = os.path.join(DATA_DIR, orders_filename)
     local_executions_path = os.path.join(DATA_DIR, executions_filename)
 
-    upload_to_s3(local_orders_path, f"orders/{orders_filename}")
-    upload_to_s3(local_executions_path, f"executions/{executions_filename}")
+    upload_to_s3(local_orders_path, f"raw/orders/{date_partition}/{orders_filename}")
+    upload_to_s3(local_executions_path, f"raw/executions/{date_partition}/{executions_filename}")
+    
+    # Sort by time
+    raw_orders.sort(key=lambda x: x.transact_time)
+    raw_executions.sort(key=lambda x: x.transact_time)
 
-    return orders, executions
+    save_to_csv(orders_to_dicts(raw_orders), orders_filename)
+    save_to_csv(executions_to_dicts(raw_executions), executions_filename)
+    
+    upload_to_s3(local_orders_path, f"staged/orders/{date_partition}/{orders_filename}")
+    upload_to_s3(local_executions_path, f"staged/executions/{date_partition}/{executions_filename}")
+
+    return raw_orders, raw_executions
 
 
 def orders_to_dicts(orders: List[Order]) -> List[dict]:

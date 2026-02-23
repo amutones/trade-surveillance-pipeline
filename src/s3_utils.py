@@ -1,5 +1,8 @@
 import boto3
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 S3_BUCKET = os.environ.get("S3_BUCKET", "trade-surveillance-data-au")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
