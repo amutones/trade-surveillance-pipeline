@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import List
 from s3_utils import upload_to_s3
+from decimal import Decimal
 
 # FIX-standard values
 SIDE_BUY = "1"
@@ -19,6 +20,7 @@ SYMBOLS = ["AAPL", "MSFT", "SPY", "QQQ", "GOOGL", "AMZN", "TSLA", "META"]
 FIRMS = [
     {"firm_id": "FIRM_A", "firm_name": "Alpha Capital", "account_type": "proprietary"},
     {"firm_id": "FIRM_B", "firm_name": "Beta Investments", "account_type": "institutional"},
+    {"firm_id": "FIRM_C", "firm_name": "Gamma Trading", "account_type": "retail"},
 ]
 VENUES = ["NYSE", "NASDAQ", "CBOE", "ARCA"]
 
@@ -70,7 +72,7 @@ class Execution:
     symbol: str             # Tag 55
     side: str               # Tag 54
     fill_qty: int           # Tag 32
-    fill_price: float       # Tag 31
+    fill_price: Decimal       # Tag 31
     transact_time: datetime # Tag 60
     venue: str              # Tag 30
 
@@ -88,7 +90,7 @@ class Execution:
             errors.append(f"Invalid side: {self.side}")
         if not isinstance(self.fill_qty, int) or self.fill_qty <= 0:
             errors.append(f"Invalid fill_qty: {self.fill_qty}")
-        if not isinstance(self.fill_price, (int, float)) or self.fill_price <= 0:
+        if not isinstance(self.fill_price, (int, float, Decimal)) or self.fill_price <= 0:
             errors.append(f"Invalid fill_price: {self.fill_price}")
         if not isinstance(self.transact_time, datetime):
             errors.append(f"Invalid transact_time: {self.transact_time}")
@@ -147,7 +149,7 @@ def generate_trading_day(date: datetime, num_orders: int = None) -> tuple[List[O
         }
         base_price = base_prices.get(order.symbol, 100.00)
         # Add some variance (+/- 0.5%)
-        fill_price = round(base_price * random.uniform(0.995, 1.005), 2)
+        fill_price = Decimal(str(round(base_price * random.uniform(0.995, 1.005), 6)))
         
         execution = Execution(
             exec_id=str(uuid.uuid4()),

@@ -12,14 +12,14 @@ CREATE TABLE firms (
     firm_id VARCHAR(50) PRIMARY KEY,
     firm_name VARCHAR(100) NOT NULL,
     account_type VARCHAR(50) NOT NULL,  -- proprietary, institutional, retail
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Accounts table
 CREATE TABLE accounts (
     account_id VARCHAR(50) PRIMARY KEY,
     firm_id VARCHAR(50) NOT NULL REFERENCES firms(firm_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Orders table (FIX tags noted in comments)
@@ -29,11 +29,11 @@ CREATE TABLE orders (
     side CHAR(1) NOT NULL,                   -- Tag 54: 1=buy, 2=sell
     order_type CHAR(1) NOT NULL,             -- Tag 40: 1=market, 2=limit
     quantity INTEGER NOT NULL,               -- Tag 38: order quantity
-    transact_time TIMESTAMP NOT NULL,        -- Tag 60: order timestamp
+    transact_time TIMESTAMPTZ NOT NULL,        -- Tag 60: order timestamp
     account_id VARCHAR(50) NOT NULL,
     firm_id VARCHAR(50) NOT NULL REFERENCES firms(firm_id),
     ord_status CHAR(1) NOT NULL,             -- Tag 39: 0=new, 1=partial, 2=filled, 4=canceled
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Executions table (FIX tags noted in comments)
@@ -43,10 +43,10 @@ CREATE TABLE executions (
     symbol VARCHAR(10) NOT NULL,             -- Tag 55: ticker symbol
     side CHAR(1) NOT NULL,                   -- Tag 54: 1=buy, 2=sell
     fill_qty INTEGER NOT NULL,               -- Tag 32: filled quantity
-    fill_price DECIMAL(12,4) NOT NULL,       -- Tag 31: execution price
-    transact_time TIMESTAMP NOT NULL,        -- Tag 60: execution timestamp
+    fill_price NUMERIC(18,6) NOT NULL,       -- Tag 31: execution price
+    transact_time TIMESTAMPTZ NOT NULL,        -- Tag 60: execution timestamp
     venue VARCHAR(20) NOT NULL,              -- Tag 30: execution venue
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for common query patterns
@@ -60,7 +60,11 @@ CREATE INDEX idx_executions_symbol ON executions(symbol);
 CREATE INDEX idx_executions_transact_time ON executions(transact_time);
 CREATE INDEX idx_executions_venue ON executions(venue);
 
+CREATE INDEX idx_executions_symbol_time ON executions(symbol, transact_time);
+CREATE INDEX idx_orders_symbol_time ON orders(symbol, transact_time);
+
 -- Insert seed data for firms
 INSERT INTO firms (firm_id, firm_name, account_type) VALUES
     ('FIRM_A', 'Alpha Capital', 'proprietary'),
-    ('FIRM_B', 'Beta Investments', 'institutional');
+    ('FIRM_B', 'Beta Investments', 'institutional'),
+    ('FIRM_C', 'Gamma Trading', 'retail');
