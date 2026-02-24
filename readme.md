@@ -8,6 +8,7 @@ A data engineering project that simulates trade order generation and surveillanc
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
+- [EC2 Deployment](#ec2-deployment)
 - [DAG Workflow](#dag-workflow)
 - [Data Model](#data-model)
 - [Idempotency](#idempotency)
@@ -21,11 +22,11 @@ A data engineering project that simulates trade order generation and surveillanc
 This pipeline simulates a trade surveillance system that:
 
 1. **Generates** synthetic FIX-protocol trade orders and executions
-2. **Stores** data as CSV files (data lake layer)
-3. **Loads** data into PostgreSQL (data warehouse layer)
+2. **Stores** data in S3 with date partitioning (raw and staged layers)
+3. **Loads** data into PostgreSQL/Supabase (data warehouse layer)
 4. **Validates** data integrity after each load
 
-The project demonstrates core data engineering concepts including orchestration, idempotent data loading, and separation of concerns between data generation and data loading.
+The project demonstrates core data engineering concepts including orchestration, idempotent data loading, date-partitioned storage, and separation of concerns between data generation and data loading.
 
 ---
 
@@ -39,24 +40,48 @@ Airflow DAG
 │
 ├── generate_new_orders
 │   ├── Generate 1,000 orders + 1,000 executions
-│   ├── Save to local ./data/
-│   └── Upload to S3 bucket
+│   ├── Inline validation (FIX protocol compliance)
+│   ├── Save raw (unsorted) to S3
+│   └── Save staged (sorted) to S3
+│
+├── verify_s3_files
+│   └── Verify raw + staged files exist in S3
 │
 ├── load_orders
-│   ├── Download from S3 bucket
-│   └── Insert to PostgreSQL
+│   ├── Download from S3 staged bucket
+│   └── Insert to PostgreSQL/Supabase
 │
 └── validate_data
     └── Assert counts match
 ```
 
+S3 Data Lake Structure:
+```
+s3://trade-surveillance-data-au/
+├── raw/
+│   ├── orders/
+│   │   └── 2026/02/24/
+│   │       └── orders_2026-02-24.csv
+│   └── executions/
+│       └── 2026/02/24/
+│           └── executions_2026-02-24.csv
+└── staged/
+    ├── orders/
+    │   └── 2026/02/24/
+    │       └── orders_2026-02-24.csv
+    └── executions/
+        └── 2026/02/24/
+            └── executions_2026-02-24.csv
+```
+
 Data Flow:
 ──────────
-1. Airflow scheduler triggers DAG (6 AM, Mon-Fri)
+1. Airflow scheduler triggers DAG (6 AM UTC, Mon-Fri)
 2. Check if weekend → skip if true
-3. Generate 1,000 orders + 1,000 executions → save to S3
-4. Download from S3 → insert to PostgreSQL (ON CONFLICT DO NOTHING)
-5. Validate → assert order and execution counts match
+3. Generate orders/executions with validation → upload raw (unsorted) + staged (sorted) to S3
+4. Verify all S3 files exist
+5. Download from S3 staged → insert to PostgreSQL/Supabase
+6. Validate → assert order and execution counts match
 ```
 
 ---
@@ -67,9 +92,10 @@ Data Flow:
 |-----------|------------|---------|
 | Orchestration | Apache Airflow 2.7.1 | Schedule and monitor pipeline |
 | Database | PostgreSQL 15 | Store trade and execution data |
-| Cloud Storage | AWS S3 | Data lake for CSV files |
+| Cloud Storage | AWS S3 | Data lake with raw/staged layers |
+| Compute | AWS EC2 (t3.micro) | Production deployment |
 | Language | Python 3.11 | Data generation and loading |
-| Containerization | Docker & Docker Compose | Local development environment |
+| Containerization | Docker & Docker Compose | Development and deployment |
 | Data Format | CSV | Intermediate storage |
 ---
 
@@ -79,7 +105,7 @@ trade-surveillance-pipeline/
 ├── dags/
 │   └── surveillance_pipeline.py    # Airflow DAG definition
 ├── src/
-│   ├── generate_orders.py          # Order/execution generation + S3 upload
+│   ├── generate_orders.py          # Order/execution generation + validation + S3 upload
 │   ├── load_data.py                # S3 download + DB loading
 │   └── s3_utils.py                 # S3 helper functions
 ├── sql/
@@ -103,6 +129,8 @@ trade-surveillance-pipeline/
 - Docker & Docker Compose
 - Git
 - Python 3.11+ (for local development)
+- AWS Account (for S3)
+- Supabase Account (for PostgreSQL)
 
 ### Installation
 
@@ -123,14 +151,20 @@ trade-surveillance-pipeline/
    ```
     *Note: This may already be handled by docker-compose, but run it if you encounter permission errors.*
 
-4. **Start Docker containers**
+4. **Create .env file**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
+
+5. **Start Docker containers**
    ```bash
    docker-compose up -d
    ```
 
-5. **Wait for services to initialize** (30-60 seconds)
+6. **Wait for services to initialize** (30-60 seconds)
 
-6. **Access Airflow UI**
+7. **Access Airflow UI**
    - URL: http://localhost:8080
    - Username: `admin`
    - Password: `admin`
@@ -144,17 +178,120 @@ trade-surveillance-pipeline/
 ### Verify Data
 
 ```bash
-# Check CSV files generated
-ls ./data/
+# Check S3 files
+aws s3 ls s3://trade-surveillance-data-au/staged/orders/ --recursive
 
-# Check database records
-docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
-  -c "SELECT COUNT(*) FROM orders;"
-
-# View sample data
-docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
-  -c "SELECT * FROM orders LIMIT 5;"
+# Check database records (via Supabase SQL Editor)
+SELECT COUNT(*) FROM orders;
+SELECT COUNT(*) FROM executions;
 ```
+
+---
+
+## EC2 Deployment
+
+The pipeline runs on AWS EC2 with auto-start on reboot.
+
+### Instance Details
+
+| Setting | Value |
+|---------|-------|
+| AMI | Amazon Linux 2023 |
+| Instance Type | t3.micro (free tier) |
+| Storage | 8 GB gp3 |
+| Region | us-east-1 |
+
+### Setup Steps
+
+1. **Launch EC2 instance** via AWS Console
+
+2. **Configure Security Group**
+   - SSH (port 22) from your IP
+   - Custom TCP (port 8080) from your IP (for Airflow UI)
+
+3. **Connect via SSH**
+   ```bash
+   ssh -i ~/.ssh/your-key.pem ec2-user@<public-ip>
+   ```
+
+4. **Install dependencies**
+   ```bash
+   sudo yum update -y
+   sudo yum install -y docker git
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   sudo usermod -aG docker ec2-user
+   
+   # Log out and back in
+   exit
+   ssh -i ~/.ssh/your-key.pem ec2-user@<public-ip>
+   
+   # Install Docker Compose
+   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+5. **Clone repo and configure**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/trade-surveillance-pipeline.git
+   cd trade-surveillance-pipeline
+   git checkout airflow
+   nano .env  # Add your credentials
+   ```
+
+6. **Add swap space** (t3.micro has limited RAM)
+   ```bash
+   sudo dd if=/dev/zero of=/swapfile bs=128M count=16
+   sudo chmod 600 /swapfile
+   sudo mkswap /swapfile
+   sudo swapon /swapfile
+   echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab
+   ```
+
+7. **Start Airflow**
+   ```bash
+   docker-compose up -d
+   ```
+
+8. **Configure auto-start on reboot**
+   ```bash
+   sudo nano /etc/systemd/system/trade-surveillance.service
+   ```
+   
+   Add:
+   ```
+   [Unit]
+   Description=Trade Surveillance Pipeline
+   Requires=docker.service
+   After=docker.service
+
+   [Service]
+   Type=oneshot
+   RemainAfterExit=yes
+   WorkingDirectory=/home/ec2-user/trade-surveillance-pipeline
+   ExecStart=/usr/local/bin/docker-compose up -d
+   ExecStop=/usr/local/bin/docker-compose down
+   User=ec2-user
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   
+   Enable the service:
+   ```bash
+   sudo systemctl enable trade-surveillance.service
+   ```
+
+9. **Access Airflow UI**
+   - URL: http://<ec2-public-ip>:8080
+   - Username: `admin`
+   - Password: `admin`
+
+### Notes
+
+- Update security group IP when your home IP changes
+- Instance runs 24/7, DAG executes at 6 AM UTC Mon-Fri
+- Check Airflow UI or Supabase to verify daily runs
 
 ---
 
@@ -164,8 +301,9 @@ docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
 |------|-------------|------------|
 | `check_if_weekend` | Branch: skip weekends, proceed on weekdays | N/A |
 | `skip_weekend` | Empty task for weekend branch | N/A |
-| `generate_new_orders` | Generate 1,000 orders → CSV (skip if exists) | ✅ |
-| `load_orders` | Read CSV → insert to PostgreSQL | ✅ |
+| `generate_new_orders` | Generate orders → validate → upload raw + staged to S3 | ✅ |
+| `verify_s3_files` | Check all raw and staged files exist in S3 | ✅ |
+| `load_orders` | Download staged CSV from S3 → insert to PostgreSQL | ✅ |
 | `validate_data` | Assert database counts match expected | ✅ |
 
 ### Schedule
@@ -195,6 +333,25 @@ This project uses standard FIX (Financial Information eXchange) protocol field t
 | 55 | Symbol | Ticker symbol |
 | 60 | TransactTime | Transaction timestamp |
 
+### Inline Validation
+
+Orders and executions are validated at generation time:
+
+```python
+@dataclass
+class Order:
+    # ... fields ...
+    
+    def validate(self) -> List[str]:
+        errors = []
+        if self.symbol not in SYMBOLS:
+            errors.append(f"Invalid symbol: {self.symbol}")
+        if self.side not in [SIDE_BUY, SIDE_SELL]:
+            errors.append(f"Invalid side: {self.side}")
+        # ... more validations ...
+        return errors
+```
+
 ### Database Schema
 
 ```sql
@@ -202,13 +359,15 @@ This project uses standard FIX (Financial Information eXchange) protocol field t
 firms (
     firm_id VARCHAR(50) PRIMARY KEY,
     firm_name VARCHAR(100),
-    account_type VARCHAR(50)
+    account_type VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 )
 
 -- Accounts
 accounts (
     account_id VARCHAR(50) PRIMARY KEY,
-    firm_id VARCHAR(50) REFERENCES firms(firm_id)
+    firm_id VARCHAR(50) REFERENCES firms(firm_id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 )
 
 -- Orders
@@ -218,10 +377,11 @@ orders (
     side CHAR(1),
     order_type CHAR(1),
     quantity INTEGER,
-    transact_time TIMESTAMP,
+    transact_time TIMESTAMPTZ,
     account_id VARCHAR(50),
     firm_id VARCHAR(50) REFERENCES firms(firm_id),
-    ord_status CHAR(1)
+    ord_status CHAR(1),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 )
 
 -- Executions
@@ -231,10 +391,15 @@ executions (
     symbol VARCHAR(10),
     side CHAR(1),
     fill_qty INTEGER,
-    fill_price DECIMAL(12,4),
-    transact_time TIMESTAMP,
-    venue VARCHAR(20)
+    fill_price NUMERIC(18,6),
+    transact_time TIMESTAMPTZ,
+    venue VARCHAR(20),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 )
+
+-- Composite indexes for surveillance queries
+CREATE INDEX idx_orders_symbol_time ON orders(symbol, transact_time);
+CREATE INDEX idx_executions_symbol_time ON executions(symbol, transact_time);
 ```
 
 ### Entity Relationship
@@ -266,6 +431,7 @@ In production, pipelines can fail mid-run and need to be retried. Without idempo
 | Layer | Mechanism | Behavior |
 |-------|-----------|----------|
 | S3 Upload | `file_exists_in_s3()` check | Skip generation if CSV exists in S3 |
+| S3 Verify | `verify_s3_files` task | Confirm all files present before loading |
 | Database Insert | `ON CONFLICT DO NOTHING` | Duplicate primary keys are ignored |
 | Validation | Count comparison | Uses `>=` to handle pre-existing data |
 
@@ -294,9 +460,8 @@ ON CONFLICT (cl_ord_id) DO NOTHING
 # - Insert 0 new rows (duplicates ignored)
 # - Validation passes
 
-# Verify no duplicates
-docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
-  -c "SELECT DATE(transact_time), COUNT(*) FROM orders GROUP BY 1 ORDER BY 1;"
+# Verify no duplicates (via Supabase SQL Editor)
+SELECT DATE(transact_time), COUNT(*) FROM orders GROUP BY 1 ORDER BY 1;
 ```
 
 ---
@@ -308,11 +473,14 @@ docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATA_DIR` | `./data` (local) or `/opt/airflow/data` (Docker) | Local CSV storage path |
-| `DB_HOST` | `localhost` (local) or `postgres` (Docker) | Database host |
-| `DB_PORT` | `5433` (local) or `5432` (Docker) | Database port |
-| `S3_BUCKET` | - | S3 bucket name |
-| `AWS_ACCESS_KEY_ID` | - | AWS access key |
-| `AWS_SECRET_ACCESS_KEY` | - | AWS secret key |
+| `DB_HOST` | `localhost` | Supabase pooler host |
+| `DB_PORT` | `5432` | 6543 for Supabase pooler |
+| `DB_NAME` | `postgres` | Database name |
+| `DB_USER` | `postgres` | Database user |
+| `DB_PASSWORD` | - | Database password (required) |
+| `S3_BUCKET` | - | S3 bucket name (required) |
+| `AWS_ACCESS_KEY_ID` | - | AWS credentials (required) |
+| `AWS_SECRET_ACCESS_KEY` | - | AWS credentials (required) |
 | `AWS_REGION` | `us-east-1` | AWS region |
 
 ### .env File (Create This)
@@ -320,13 +488,21 @@ docker exec -it surveillance_db psql -U surveillance_user -d surveillance_db \
 # AWS Credentials
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-1
 S3_BUCKET=your-bucket-name
+
+# Supabase Database
+DB_HOST=aws-0-us-east-1.pooler.supabase.com
+DB_PORT=6543
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=your-supabase-password
 
 # Airflow Secrets
 AIRFLOW__CORE__FERNET_KEY=your-fernet-key
 AIRFLOW__WEBSERVER__SECRET_KEY=your-secret-key
 
-# Database
+# Local Database (Docker)
 POSTGRES_PASSWORD=surveillance_pass
 ```
 
@@ -351,14 +527,6 @@ POSTGRES_PASSWORD=surveillance_pass
 2. Create bucket (e.g., `trade-surveillance-data-yourname`)
 3. Region: `us-east-1`
 
-**Structure:**
-```
-s3://trade-surveillance-data-au/
-├── orders/
-│   └── orders_YYYY-MM-DD.csv
-└── executions/
-    └── executions_YYYY-MM-DD.csv
-```
 
 ### AWS IAM
 
@@ -386,19 +554,6 @@ s3://trade-surveillance-data-au/
 - Port: `6543`
 - Database: `postgres`
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_HOST` | `localhost` | Supabase pooler host |
-| `DB_PORT` | `5432` | 6543 for Supabase pooler |
-| `DB_NAME` | `postgres` | Database name |
-| `DB_USER` | `postgres` | Database user |
-| `DB_PASSWORD` | - | Database password (required) |
-| `S3_BUCKET` | - | S3 bucket name (required) |
-| `AWS_ACCESS_KEY_ID` | - | AWS credentials (required) |
-| `AWS_SECRET_ACCESS_KEY` | - | AWS credentials (required) |
-| `AWS_REGION` | `us-east-1` | AWS region |
 ```
 
 ---
@@ -411,6 +566,9 @@ s3://trade-surveillance-data-au/
 | Permission denied on ./data | Run: `sudo chown -R 50000:50000 ./data` |
 | Database connection failed | Verify PostgreSQL is running: `docker ps` |
 | Port 8080 in use | Stop other services or change port in docker-compose.yml |
+| EC2 SSH hangs | Update security group with your current IP |
+| EC2 out of memory | Add swap space (see EC2 Deployment section) |
+| S3 upload fails | Check AWS credentials in .env |
 
 ---
 
@@ -418,11 +576,18 @@ s3://trade-surveillance-data-au/
 
 - [x] **S3 Integration:** CSVs stored in S3 data lake
 - [x] **Cloud Database:** PostgreSQL on Supabase
-- [ ] **EC2 Deployment:** Run Airflow on AWS EC2
+- [x] **Date Partitioning:** S3 paths use YYYY/MM/DD structure
+- [x] **Inline Validation:** Orders/executions validated at generation
+- [x] **Raw/Staged Layers:** Separate unsorted (raw) and sorted (staged) data
+- [x] **NUMERIC Precision:** fill_price uses NUMERIC(18,6)
+- [x] **TIMESTAMPTZ:** All timestamps timezone-aware
+- [x] **Composite Indexes:** Optimized for symbol + timestamp queries
+- [x] **S3 Verification:** DAG verifies files before loading
+- [x] **EC2 Deployment:** Airflow running on AWS EC2 with auto-start
 - [ ] **dbt Transformations:** Add staging and mart layers
 - [ ] **Surveillance Logic:** Implement wash trade detection
 - [ ] **Power BI Dashboard:** Visualize alerts and metrics
-- [ ] **Kafka Streaming:** Real-time order processing
+- [ ] **Kafka Streaming:** Real-time order processing (Java/Spring Boot)
 
 ---
 
