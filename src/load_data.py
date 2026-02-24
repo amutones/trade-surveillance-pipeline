@@ -102,14 +102,15 @@ def insert_executions(conn, executions: list[dict]):
 def load_single_day(trade_date: datetime):
     """Load data for a single trading day - used by Airflow."""
     date_str = trade_date.strftime("%Y-%m-%d")
+    date_partition = trade_date.strftime("%Y/%m/%d")
     
     orders_filename = f"orders_{date_str}.csv"
     executions_filename = f"executions_{date_str}.csv"
     local_orders_path = os.path.join(DATA_DIR, orders_filename)
     local_executions_path = os.path.join(DATA_DIR, executions_filename)
 
-    download_from_s3(f"orders/{orders_filename}", local_orders_path)
-    download_from_s3(f"executions/{executions_filename}", local_executions_path)
+    download_from_s3(f"staged/orders/{date_partition}/{orders_filename}", local_orders_path)
+    download_from_s3(f"staged/executions/{date_partition}/{executions_filename}", local_executions_path)
 
     orders_data = read_from_csv(orders_filename)
     executions_data = read_from_csv(executions_filename)

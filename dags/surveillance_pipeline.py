@@ -22,6 +22,36 @@ def check_if_weekend(**context):
         print(f"Running - {execution_date.date()} is a weekday")
         return 'generate_new_orders'
 
+def verify_s3_files(**context):
+    from s3_utils import file_exists_in_s3
+
+    execution_date = context['execution_date']
+    trade_date = execution_date.replace(tzinfo=None)
+    date_partition = trade_date.strftime("%Y/%m/%d")
+    date_str = trade_date.strftime("%Y-%m-%d")
+
+    required_files = [
+        f"raw/orders/{date_partition}/orders_{date_str}.csv",
+        f"raw/executions/{date_partition}/executions_{date_str}.csv",
+        f"staged/orders/{date_partition}/orders_{date_str}.csv",
+        f"staged/executions/{date_partition}/executions_{date_str}.csv",
+    ]
+
+    print(f"S3 Verification for {date_str}:")
+
+    missing = []
+    for key in required_files:
+        exists = file_exists_in_s3(key)
+        status = "✓ Found" if exists else "✗ Missing"
+        print(f"  {key} - {status}")
+        if not exists:
+            missing.append(key)
+
+    if missing:
+        raise FileNotFoundError(f"Missing files in S3: {missing}")
+    
+    print("✓ All files verified")
+    return True
 
 def run_generate_new_orders(**context):
     """Generate day's trading data and save to csv."""
@@ -33,9 +63,10 @@ def run_generate_new_orders(**context):
     
     # Make it timezone-naive if needed
     trade_date = execution_date.replace(tzinfo=None)
+    date_partition = trade_date.strftime("%Y/%m/%d")
     date_str = trade_date.strftime("%Y-%m-%d")
 
-    s3_key = f"orders/orders_{date_str}.csv"
+    s3_key = f"staged/orders/{date_partition}/orders_{date_str}.csv"
 
     if file_exists_in_s3(s3_key):
         print(f"CSV for {date_str} already exists in S3. Skipping generation.")
@@ -152,6 +183,11 @@ with DAG(
         python_callable=run_generate_new_orders,
     )
 
+    verify_s3 = PythonOperator(
+        task_id='verify_s3_files',
+        python_callable=verify_s3_files
+    )
+
     load_orders = PythonOperator(
         task_id='load_orders',
         python_callable=run_load_orders,
@@ -166,4 +202,4 @@ with DAG(
 
     # Pipeline flow
     check_weekend >> [skip_weekend, generate_new_orders]
-    generate_new_orders >> load_orders >> validate
+    generate_new_orders >> verify_s3 >> load_orders >> validate
