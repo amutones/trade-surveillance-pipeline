@@ -147,6 +147,38 @@ def run_validate_data(**context):
     
     print("✓ Validation passed")
 
+def run_dbt(**context):
+    """Run dbt models after data load."""
+    import subprocess
+
+    dbt_project_dir = "/opt/airflow/surveillance_dbt"
+    dbt_profiles_dir = "/home/airflow/.dbt"
+
+    # Run dbt models
+    print("Running dbt models...")
+    result = subprocess.run(
+        ["dbt", "run", "--project-dir", dbt_project_dir, "--profiles-dir", dbt_profiles_dir],
+        capture_output=True,
+        text=True
+    )
+    print(result.stdout)
+    if result.returncode != 0:
+        print(result.stderr)
+        raise Exception(f"dbt run failed: {result.stderr}")
+
+    # Run dbt tests
+    print("Running dbt tests...")
+    result = subprocess.run(
+        ["dbt", "test", "--project-dir", dbt_project_dir, "--profiles-dir", dbt_profiles_dir],
+        capture_output=True,
+        text=True
+    )
+    print(result.stdout)
+    if result.returncode != 0:
+        print(result.stderr)
+        raise Exception(f"dbt run failed: {result.stderr}")
+    
+    return "dbt completed successfully"
 
 default_args = {
     'owner': 'tony',
@@ -162,7 +194,7 @@ with DAG(
     default_args=default_args,
     description='Daily trade surveillance data pipeline',
     schedule_interval='0 8 * * 1-5',  # 6 AM, Monday-Friday only
-    start_date=datetime(2026, 2, 3, tzinfo=timezone("America/Chicago"))
+    start_date=datetime(2026, 2, 3, tzinfo=timezone("America/Chicago")),
     catchup=False,
     tags=['surveillance', 'etl', 'compliance'],
 ) as dag:
@@ -202,6 +234,11 @@ with DAG(
         python_callable=run_validate_data,
     )
 
+    run_dbt_models = PythonOperator(
+        task_id="run_dbt_models",
+        python_callable=run_dbt,
+    )
+
     # Pipeline flow
     check_weekend >> [skip_weekend, generate_new_orders]
-    generate_new_orders >> verify_s3 >> load_orders >> validate
+    generate_new_orders >> verify_s3 >> load_orders >> validate >> run_dbt_models
