@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    database: postgres
+    schema: public
+    tables:
+      - name: orders
+      - name: executions
+      - name: firms
+      - name: accounts

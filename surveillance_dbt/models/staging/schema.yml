@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "Staged orders with readable side labels"
+    columns:
+      - name: cl_ord_id
+        description: "Primary key - unique order ID"
+        tests:
+          - unique
+          - not_null
+      - name: symbol
+        tests:
+          - not_null
+      - name: side_label
+        tests:
+          - accepted_values:
+              values: ['BUY', 'SELL']
+
+  - name: stg_executions
+    description: "Staged executions with notional value calculated"
+    columns:
+      - name: exec_id
+        description: "Primary key - unique execution ID"
+        tests:
+          - unique
+          - not_null
+      - name: cl_ord_id
+        description: "Foreign key to orders"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: cl_ord_id
