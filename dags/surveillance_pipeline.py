@@ -3,6 +3,7 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
+from pendulum import timezone
 import sys
 import os
 
@@ -160,7 +161,8 @@ with DAG(
     'trade_surveillance_daily',
     default_args=default_args,
     description='Daily trade surveillance data pipeline',
-    schedule_interval='0 6 * * 1-5',  # 6 AM, Monday-Friday only
+    schedule_interval='0 8 * * 1-5',  # 6 AM, Monday-Friday only
+    start_date=datetime(2026, 2, 3, tzinfo=timezone("America/Chicago"))
     catchup=False,
     tags=['surveillance', 'etl', 'compliance'],
 ) as dag:
