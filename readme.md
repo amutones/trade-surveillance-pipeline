@@ -11,6 +11,7 @@ A data engineering project that simulates trade order generation and surveillanc
 - [EC2 Deployment](#ec2-deployment)
 - [DAG Workflow](#dag-workflow)
 - [Data Model](#data-model)
+- [dbt Models](#dbt-models)
 - [Idempotency](#idempotency)
 - [Configuration](#configuration)
 - [Future Enhancements](#future-enhancements)
@@ -21,18 +22,20 @@ A data engineering project that simulates trade order generation and surveillanc
 
 This pipeline simulates a trade surveillance system that:
 
-1. **Generates** synthetic FIX-protocol trade orders and executions
+1. **Generates** synthetic FIX-protocol trade orders and executions with inline validation
 2. **Stores** data in S3 with date partitioning (raw and staged layers)
 3. **Loads** data into PostgreSQL/Supabase (data warehouse layer)
-4. **Validates** data integrity after each load
+4. **Transforms** data using dbt into analytics-ready models
+5. **Validates** data integrity after each load and runs dbt tests after each load
 
-The project demonstrates core data engineering concepts including orchestration, idempotent data loading, date-partitioned storage, and separation of concerns between data generation and data loading.
+The project demonstrates core data engineering concepts including orchestration, idempotent data loading, date-partitioned 
+storage, data transformation with dbt, and separation of concerns between data generation, loading and transformation.
 
 ---
 
 ## Architecture
 ```
-Airflow DAG
+Airflow DAG (AWS EC2 / Docker)
 │
 ├── check_if_weekend
 │   ├── Yes → skip_weekend (end)
@@ -41,18 +44,36 @@ Airflow DAG
 ├── generate_new_orders
 │   ├── Generate 1,000 orders + 1,000 executions
 │   ├── Inline validation (FIX protocol compliance)
-│   ├── Save raw (unsorted) to S3
-│   └── Save staged (sorted) to S3
+│   ├── Save raw (unsorted) → AWS S3 (raw/orders/YYYY/MM/DD/)
+│   └── Save staged (sorted) → AWS S3 (staged/orders/YYYY/MM/DD/)
 │
 ├── verify_s3_files
 │   └── Verify raw + staged files exist in S3
 │
 ├── load_orders
 │   ├── Download from S3 staged bucket
-│   └── Insert to PostgreSQL/Supabase
+│   └── Insert to Supabase PostgreSQL (orders, executions, firms)
 │
-└── validate_data
-    └── Assert counts match
+├── validate_data
+│   └── Assert counts match
+│
+└── run_dbt_models
+    ├── dbt run
+    │   ├── Staging (views)
+    │   │   ├── stg_orders
+    │   │   └── stg_executions
+    │   └── Marts (tables)
+    │       ├── fct_daily_trading
+    │       └── fct_wash_trade_flags
+    └── dbt test
+        ├── unique, not_null checks
+        └── relationship validations
+                │
+                ▼
+        ┌───────────────┐
+        │   Power BI    │
+        │   (future)    │
+        └───────────────┘
 ```
 
 S3 Data Lake Structure:
@@ -76,12 +97,14 @@ s3://trade-surveillance-data-au/
 
 Data Flow:
 ──────────
-1. Airflow scheduler triggers DAG (6 AM UTC, Mon-Fri)
+1. Airflow scheduler triggers DAG (8 AM CT, Mon-Fri)
 2. Check if weekend → skip if true
 3. Generate orders/executions with validation → upload raw (unsorted) + staged (sorted) to S3
 4. Verify all S3 files exist
 5. Download from S3 staged → insert to PostgreSQL/Supabase
 6. Validate → assert order and execution counts match
+7. Run dbt models → create staging views and mart tables
+8. Run dbt tests → validate data quality
 ```
 
 ---
@@ -91,6 +114,7 @@ Data Flow:
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Orchestration | Apache Airflow 2.7.1 | Schedule and monitor pipeline |
+| Transformation | dbt 1.10.0 | SQL-based data modeling |
 | Database | PostgreSQL 15 | Store trade and execution data |
 | Cloud Storage | AWS S3 | Data lake with raw/staged layers |
 | Compute | AWS EC2 (t3.micro) | Production deployment |
@@ -108,11 +132,21 @@ trade-surveillance-pipeline/
 │   ├── generate_orders.py          # Order/execution generation + validation + S3 upload
 │   ├── load_data.py                # S3 download + DB loading
 │   └── s3_utils.py                 # S3 helper functions
+├── surveillance_dbt/
+│   ├── models/
+│   │   ├── staging/
+│   │   │   ├── sources.yml         # Source definitions
+│   │   │   ├── schema.yml          # Model tests
+│   │   │   ├── stg_orders.sql      # Staged orders view
+│   │   │   └── stg_executions.sql  # Staged executions view
+│   │   └── marts/
+│   │       ├── fct_daily_trading.sql      # Daily trading summary
+│   │       └── fct_wash_trade_flags.sql   # Wash trade detection
+│   └── dbt_project.yml             # dbt configuration
 ├── sql/
 │   └── create_tables.sql           # Database schema
-├── data/                           # Local CSV files (temporary)
-├── logs/                           # Airflow logs
-├── plugins/                        # Airflow plugins
+├── Dockerfile.airflow              # Custom Airflow image with dbt
+├── profiles.yml                    # dbt connection profile
 ├── docker-compose.yml              # Docker services configuration
 ├── requirements.txt                # Python dependencies
 ├── .env                            # Environment variables (not in git)
@@ -184,6 +218,10 @@ aws s3 ls s3://trade-surveillance-data-au/staged/orders/ --recursive
 # Check database records (via Supabase SQL Editor)
 SELECT COUNT(*) FROM orders;
 SELECT COUNT(*) FROM executions;
+
+# Check dbt models
+SELECT * FROM fct_daily_trading LIMIT 10;
+SELECT * FROM fct_wash_trade_flags;
 ```
 
 ---
@@ -229,14 +267,19 @@ The pipeline runs on AWS EC2 with auto-start on reboot.
    # Install Docker Compose
    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
    sudo chmod +x /usr/local/bin/docker-compose
+
+   # Install Docker Buildx (required for custom Dockerfile)
+   mkdir -p ~/.docker/cli-plugins
+   curl -SL https://github.com/docker/buildx/releases/download/v0.17.1/buildx-v0.17.1.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
+   chmod +x ~/.docker/cli-plugins/docker-buildx
    ```
 
 5. **Clone repo and configure**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/trade-surveillance-pipeline.git
+   git clone https://github.com/amutones/trade-surveillance-pipeline.git
    cd trade-surveillance-pipeline
-   git checkout airflow
    nano .env  # Add your credentials
+   chmod -R 777 surveillance_dbt/
    ```
 
 6. **Add swap space** (t3.micro has limited RAM)
@@ -248,8 +291,9 @@ The pipeline runs on AWS EC2 with auto-start on reboot.
    echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab
    ```
 
-7. **Start Airflow**
+7. **Build and start Airflow**
    ```bash
+   docker-compose build
    docker-compose up -d
    ```
 
@@ -290,7 +334,7 @@ The pipeline runs on AWS EC2 with auto-start on reboot.
 ### Notes
 
 - Update security group IP when your home IP changes
-- Instance runs 24/7, DAG executes at 6 AM UTC Mon-Fri
+- Instance runs 24/7, DAG executes at 8 AM CT Mon-Fri
 - Check Airflow UI or Supabase to verify daily runs
 
 ---
@@ -305,12 +349,13 @@ The pipeline runs on AWS EC2 with auto-start on reboot.
 | `verify_s3_files` | Check all raw and staged files exist in S3 | ✅ |
 | `load_orders` | Download staged CSV from S3 → insert to PostgreSQL | ✅ |
 | `validate_data` | Assert database counts match expected | ✅ |
+| `run_dbt_models` | Run dbt models and tests | ✅ |
 
 ### Schedule
 
-- **Frequency:** Daily at 6:00 AM UTC
+- **Frequency:** Daily at 8:00 AM CT (14:00 UTC)
 - **Days:** Monday through Friday
-- **Cron:** `0 6 * * 1-5`
+- **Cron:** `0 8 * * 1-5` (with America/Chicago timezone)
 
 ---
 
@@ -414,6 +459,99 @@ CREATE INDEX idx_executions_symbol_time ON executions(symbol, transact_time);
 
 ---
 
+## dbt Models
+
+dbt transforms raw data into analytics-ready models.
+
+### Model Layers
+
+| Layer | Materialization | Purpose |
+|-------|-----------------|---------|
+| Staging | View | Clean and standardize raw data |
+| Marts | Table | Business-ready aggregations |
+
+### Staging Models
+
+**stg_orders** - Cleaned orders with readable labels
+```sql
+SELECT
+    cl_ord_id,
+    symbol,
+    CASE WHEN side = '1' THEN 'BUY' ELSE 'SELL' END as side_label,
+    quantity,
+    transact_time,
+    DATE(transact_time) as trade_date,
+    firm_id
+FROM orders
+```
+
+**stg_executions** - Cleaned executions with calculated fields
+```sql
+SELECT
+    exec_id,
+    cl_ord_id,
+    symbol,
+    CASE WHEN side = '1' THEN 'BUY' ELSE 'SELL' END as side_label,
+    fill_qty,
+    fill_price,
+    fill_qty * fill_price as notional_value,
+    transact_time,
+    venue
+FROM executions
+```
+
+### Mart Models
+
+**fct_daily_trading** - Daily trading summary by firm and symbol
+| Column | Description |
+|--------|-------------|
+| trade_date | Trading date |
+| firm_id | Firm identifier |
+| symbol | Stock symbol |
+| side_label | BUY or SELL |
+| order_count | Number of orders |
+| total_shares | Total shares traded |
+| total_notional | Total dollar value |
+| avg_fill_price | Average execution price |
+| venues_used | Number of venues used |
+
+**fct_wash_trade_flags** - Potential wash trade detection
+| Column | Description |
+|--------|-------------|
+| trade_date | Trading date |
+| firm_id | Firm identifier |
+| symbol | Stock symbol |
+| buy_shares | Total shares bought |
+| sell_shares | Total shares sold |
+| wash_trade_flag | TRUE if firm bought AND sold same symbol same day |
+
+### dbt Tests
+
+| Test | Model | Column | Description |
+|------|-------|--------|-------------|
+| unique | stg_orders | cl_ord_id | No duplicate orders |
+| not_null | stg_orders | cl_ord_id, symbol | Required fields |
+| accepted_values | stg_orders | side_label | Only BUY or SELL |
+| unique | stg_executions | exec_id | No duplicate executions |
+| relationships | stg_executions | cl_ord_id | FK to stg_orders |
+
+### Running dbt Manually
+
+```bash
+cd surveillance_dbt
+
+# Run all models
+dbt run
+
+# Run tests
+dbt test
+
+# Generate documentation
+dbt docs generate
+dbt docs serve
+```
+---
+
 ## Idempotency
 
 The pipeline is designed to be safely re-run without creating duplicate data. Running the pipeline multiple times for the same date produces the same result.
@@ -434,6 +572,7 @@ In production, pipelines can fail mid-run and need to be retried. Without idempo
 | S3 Verify | `verify_s3_files` task | Confirm all files present before loading |
 | Database Insert | `ON CONFLICT DO NOTHING` | Duplicate primary keys are ignored |
 | Validation | Count comparison | Uses `>=` to handle pre-existing data |
+| dbt | Incremental rebuild | Tables recreated with current data |
 
 ### S3 Check
 ```python
@@ -459,6 +598,7 @@ ON CONFLICT (cl_ord_id) DO NOTHING
 # - Skip CSV generation
 # - Insert 0 new rows (duplicates ignored)
 # - Validation passes
+# - dbt models rebuild successfully
 
 # Verify no duplicates (via Supabase SQL Editor)
 SELECT DATE(transact_time), COUNT(*) FROM orders GROUP BY 1 ORDER BY 1;
@@ -564,11 +704,13 @@ POSTGRES_PASSWORD=surveillance_pass
 |-------|----------|
 | DAG not appearing | Check scheduler logs: `docker logs airflow_scheduler` |
 | Permission denied on ./data | Run: `sudo chown -R 50000:50000 ./data` |
+| Permission denied on dbt | Run: `chmod -R 777 surveillance_dbt/` |
 | Database connection failed | Verify PostgreSQL is running: `docker ps` |
 | Port 8080 in use | Stop other services or change port in docker-compose.yml |
 | EC2 SSH hangs | Update security group with your current IP |
 | EC2 out of memory | Add swap space (see EC2 Deployment section) |
 | S3 upload fails | Check AWS credentials in .env |
+| dbt run fails | Check `surveillance_dbt/logs/dbt.log` |
 
 ---
 
@@ -584,8 +726,8 @@ POSTGRES_PASSWORD=surveillance_pass
 - [x] **Composite Indexes:** Optimized for symbol + timestamp queries
 - [x] **S3 Verification:** DAG verifies files before loading
 - [x] **EC2 Deployment:** Airflow running on AWS EC2 with auto-start
-- [ ] **dbt Transformations:** Add staging and mart layers
-- [ ] **Surveillance Logic:** Implement wash trade detection
+- [x] **dbt Transformations:** Staging and mart layers
+- [x] **Surveillance Logic:** Wash trade detection flags
 - [ ] **Power BI Dashboard:** Visualize alerts and metrics
 - [ ] **Kafka Streaming:** Real-time order processing (Java/Spring Boot)
 
